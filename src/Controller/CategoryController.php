@@ -65,7 +65,8 @@ final class CategoryController extends AbstractController{
         int $id,
         Request $request,
         CategoryRepository $categoryRepository,
-        EntityManagerInterface $entityManager
+        EntityManagerInterface $entityManager,
+        UserRepository $userRepository
     ): JsonResponse {
         $category = $categoryRepository->find($id);
 
