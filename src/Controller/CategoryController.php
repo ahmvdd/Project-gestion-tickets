@@ -35,18 +35,18 @@ final class CategoryController extends AbstractController{
         $data = json_decode($request->getContent(), true);
 
         // Validation des données
-        if (empty($data['nameCategory']) || empty($data['assigned_to'])) {
+        if (empty($data['name_category']) || empty($data['assigned_to_id'])) {
             return $this->json(['error' => 'Missing required fields.'], 400); // Bad Request
         }
 
-        $user = $userRepository->find($data['assigned_to']);
+        $user = $userRepository->find($data['assigned_to_id']);
         if (!$user) {
             return $this->json(['error' => 'User not found.'], 404); // Not Found
         }
 
         // Création de la catégorie
         $category = new Category();
-        $category->setNameCategory($data['nameCategory']);
+        $category->setNameCategory($data['name_category']);
         $category->setAssignedTo($user);
 
         $entityManager->persist($category);
