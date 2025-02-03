@@ -23,6 +23,9 @@ class Category
     #[Groups(['category:read', 'category:write'])]
     private ?User $assigned_to = null;
 
+    #[ORM\ManyToOne(inversedBy: 'categories')]
+    private ?User $user = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -48,6 +51,18 @@ class Category
     public function setAssignedTo(?User $assigned_to): static
     {
         $this->assigned_to = $assigned_to;
+
+        return $this;
+    }
+
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
+
+    public function setUser(?User $user): static
+    {
+        $this->user = $user;
 
         return $this;
     }

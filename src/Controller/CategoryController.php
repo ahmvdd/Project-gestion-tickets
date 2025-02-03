@@ -3,7 +3,6 @@
 namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Entity\Category;
 use App\Repository\CategoryRepository;
@@ -27,7 +26,7 @@ final class CategoryController extends AbstractController{
     }
 
 
-    #[Route('/api/categories', name: 'category_create', methods: ['POST'])]
+    #[Route('/api/post/category', name: 'category_create', methods: ['POST'])]
     public function createCategory(
         Request $request,
         EntityManagerInterface $entityManager,
@@ -36,11 +35,11 @@ final class CategoryController extends AbstractController{
         $data = json_decode($request->getContent(), true);
 
         // Validation des données
-        if (empty($data['nameCategory']) || empty($data['userId'])) {
+        if (empty($data['nameCategory']) || empty($data['assigned_to'])) {
             return $this->json(['error' => 'Missing required fields.'], 400); // Bad Request
         }
 
-        $user = $userRepository->find($data['userId']);
+        $user = $userRepository->find($data['assigned_to']);
         if (!$user) {
             return $this->json(['error' => 'User not found.'], 404); // Not Found
         }

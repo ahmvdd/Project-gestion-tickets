@@ -3,131 +3,90 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Form\UserType;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
-use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 
-
-#[Route('/api', name: 'user_')]
-final class UserController extends AbstractController{
-
-    #le getall des user
-    #[Route('/users', name: 'list', methods: ['GET'])]
-    public function listUsers(UserRepository $userRepository): JsonResponse
+#[Route('/api/user')]
+final class UserController extends AbstractController
+{
+    #[Route(name: 'app_user_index', methods: ['GET'])]
+    public function index(UserRepository $userRepository): Response
     {
         $users = $userRepository->findAll();
-        return $this->json($users, context: [
-            AbstractNormalizer::GROUPS => ['user:read']
-        ]);
-
+        return $this->json($users);
     }
 
-    #le post d'un user
-    #[Route('/post/user', name: 'create', methods: ['POST'])]
-    public function createUser(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    #[Route('/new', name: 'app_user_new', methods: ['POST'])]
+    public function new(Request $request, EntityManagerInterface $entityManager, UserPasswordHasherInterface $passwordHasher): Response
     {
         $data = json_decode($request->getContent(), true);
-
-        // Validation des données requises
-        if (empty($data['firstname']) || empty($data['lastname']) || empty($data['email']) || empty($data['password'])) {
-            return $this->json(['error' => 'Missing required fields.'], 400); // Bad Request
+        if (null === $data) {
+            return $this->json(['error' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
         }
 
-        // Création de l'utilisateur
         $user = new User();
-        $user->setFirstname($data['firstname'])
-            ->setLastname($data['lastname'])
-            ->setEmail($data['email'])
-            ->setPassword(password_hash($data['password'], PASSWORD_BCRYPT))
-            ->setRole($data['role'] ?? 'etudiant') // Rôle par défaut si non fourni
-            ->setCreatedAt(new \DateTimeImmutable());
+        $user->setEmail($data['email'] ?? '');
+        $user->setFirstname($data['firstname'] ?? '');
+        $user->setLastname($data['lastname'] ?? '');
+
+        if (!isset($data['password']) || empty($data['password'])) {
+            return $this->json(['error' => 'Password is required'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Hash du mot de passe avant de le stocker
+        $hashedPassword = $passwordHasher->hashPassword($user, $data['password']);
+        $user->setPassword($hashedPassword);
 
         $entityManager->persist($user);
         $entityManager->flush();
 
-        return $this->json($user, 201); // 201: Created
+        return $this->json($user, Response::HTTP_CREATED);
+    }
+    #[Route('/api/user/{id}', name: 'app_user_show', methods: ['GET'])]
+    public function show(User $user): Response
+    {
+        return $this->json($user);
     }
 
-
-    #le update d'un user
-    #[Route('/user/{id}', name: 'update', methods: ['PATCH'])]
-    public function updateUser(
-        int $id,
-        Request $request,
-        UserRepository $userRepository,
-        EntityManagerInterface $entityManager,
-        ValidatorInterface $validator
-    ): JsonResponse {
-        $user = $userRepository->find($id);
-
-        if (!$user) {
-            return $this->json(['error' => 'User not found.'], 404); // Not Found
-        }
-
+    #[Route('/{id}/edit', name: 'app_user_edit', methods: ['PUT', 'PATCH'])]
+    public function edit(Request $request, User $user, EntityManagerInterface $entityManager): Response
+    {
         $data = json_decode($request->getContent(), true);
-
-        if (isset($data['firstname'])) {
-            $user->setFirstname($data['firstname']);
+        if (null === $data) {
+            return $this->json(['error' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
         }
 
-        if (isset($data['lastname'])) {
-            $user->setLastname($data['lastname']);
-        }
-
+        // Mise à jour des champs souhaités
         if (isset($data['email'])) {
             $user->setEmail($data['email']);
         }
-
-        if (isset($data['password'])) {
-            $user->setPassword(password_hash($data['password'], PASSWORD_BCRYPT));
+        if (isset($data['firstname'])) {
+            $user->setFirstname($data['firstname']);
         }
-
-        if (isset($data['role'])) {
-            $user->setRole($data['role']);
+        if (isset($data['lastname'])) {
+            $user->setLastname($data['lastname']);
         }
-
-        $errors = $validator->validate($user);
-        if (count($errors) > 0) {
-            return $this->json($errors, 400); // Bad Request
-        }
+        // Et ainsi de suite pour les autres propriétés...
 
         $entityManager->flush();
 
-        return $this->json($user, 200, [], [
-            AbstractNormalizer::GROUPS => ['user:read']
-        ]);
+        return $this->json($user);
     }
 
-    #le delete d'un user
-    #[Route('/user/{id}', name: 'delete', methods: ['DELETE'])]
-    public function deleteUser(
-        int $id,
-        UserRepository $userRepository,
-        EntityManagerInterface $entityManager
-    ): JsonResponse {
-        // Recherche de l'utilisateur
-        $user = $userRepository->find($id);
-
-        if (!$user) {
-            return $this->json(['error' => 'User not found.'], 404); // Not Found
-        }
-
-        // Suppression de l'utilisateur
+    #[Route('/api/user/{id}', name: 'app_user_delete', methods: ['DELETE'])]
+    public function delete(Request $request, User $user, EntityManagerInterface $entityManager): Response
+    {
+        // Pour une API, vous pouvez vérifier le token CSRF si nécessaire, sinon simplement procéder :
         $entityManager->remove($user);
         $entityManager->flush();
 
-        return $this->json(['message' => 'User deleted successfully.'], 200);
+        return $this->json(['status' => 'User deleted'], Response::HTTP_OK);
     }
-
-
-
-
-
 }
